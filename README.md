@@ -1,4 +1,13 @@
-﻿# RehaConnect
+## License
+
+RehaConnect is a proprietary, commercial product. All rights reserved.
+
+Unauthorized copying, distribution, modification, or use of this software is strictly prohibited without the express written permission of the copyright holder.
+
+For licensing inquiries, contact **contact@clisonix.com**.
+
+---
+# RehaConnect
 
 Responsive English/German clinic portal and patient view, with no seeded data or invented metrics.
 
@@ -77,3 +86,4 @@ The HTTP checks start an isolated local process and verify static assets,
 unauthenticated rejection, CSRF rejection, webhook signature-header requirements
 and service-unavailable behavior. They do not create accounts or make payments.
 See `docs/VALIDATION.md` for actual validation results and remaining limits.
+

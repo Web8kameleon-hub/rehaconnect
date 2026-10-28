@@ -1,0 +1,16 @@
+# NOTICE
+
+RehaConnect includes or depends on the following third-party software:
+
+## Longo
+- License: Dual-licensed (AGPL-3.0 or Commercial)
+- Copyright: Web8kameleon Hub / Clisonix
+- Usage: RehaConnect uses Longo under a Commercial License.
+
+## Lightning SPP
+- License: See LICENSE in the Lightning SPP repository
+- Copyright: Web8kameleon Hub / Clisonix
+- Usage: RehaConnect integrates with Lightning SPP via REST API.
+
+## Other Dependencies
+- See pom.xml for a full list of Maven dependencies.
