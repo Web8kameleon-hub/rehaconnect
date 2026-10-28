@@ -3,6 +3,11 @@
 This checkpoint saves the RehaConnect work and current dependency versions. It
 is a development snapshot, not a production release or deployment.
 
+Later update on the same date: the user separated `infrastructure/longo` into
+`Web8kameleon-hub/LONGO-` and removed its RehaConnect gitlink. The current README
+and `.gitmodules` reflect that change. The dependency list below records the
+earlier checkpoint; only Lightning remains a RehaConnect submodule.
+
 ## Saved application work
 
 - Responsive clinic and patient views in English and German, with empty or

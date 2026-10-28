@@ -52,6 +52,25 @@ explicit origin as its first argument when using custom ports.
 
 ## Reused runtime
 
+Longo's independent repository is now
+https://github.com/Web8kameleon-hub/LONGO-. It is no longer a RehaConnect submodule.
+The local `infrastructure/longo` checkout is ignored to prevent accidentally
+adding it as an embedded repository again. RehaConnect already includes the core
+Java storage classes it uses; Lightning includes its own required Longo sources.
+The application launcher does not require the independent checkout.
+
+To retrieve that independent source separately, if needed:
+
+```powershell
+git clone https://github.com/Web8kameleon-hub/LONGO-.git infrastructure/longo
+```
+
+Lightning remains a submodule. After cloning RehaConnect, restore it with:
+
+```powershell
+git submodule update --init --recursive
+```
+
 The Lightning checkout is in `services/lightning-spp-3.14/source`, pinned to
 `796e0bcadde1158cb9e307c0ca41a369c373fc1b`. Its original account, CSRF, Stripe
 Checkout, billing portal, webhook and fulfillment code is used through a local

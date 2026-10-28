@@ -13,3 +13,5 @@
 **/bin/
 **/obj/
 **/TestResults/
+# Longo is maintained as an independent repository, not embedded in this one.
+/infrastructure/longo/
