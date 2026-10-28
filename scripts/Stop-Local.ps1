@@ -3,7 +3,7 @@ $taskRoot=Split-Path -Parent $PSScriptRoot
 $recordPath=Join-Path $taskRoot '.cache\local-runtime.json'
 if(-not (Test-Path -LiteralPath $recordPath)){Write-Output 'No recorded runtime.';return}
 $record=Get-Content -Raw -LiteralPath $recordPath|ConvertFrom-Json
-foreach($name in @('rehaconnect','lightning','longo')){
+foreach($name in @('frontend','rehaconnect','lightning','longo')){
     $processId=$record.$name
     if(-not $processId){continue}
     $details=Get-CimInstance Win32_Process -Filter "ProcessId=$processId"

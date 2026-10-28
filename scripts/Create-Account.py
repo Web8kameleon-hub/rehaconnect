@@ -5,8 +5,10 @@ import json
 import sys
 import urllib.error
 import urllib.request
+from pathlib import Path
 
-origin = sys.argv[1].rstrip('/') if len(sys.argv) > 1 else 'http://127.0.0.1:4800'
+config = json.loads((Path(__file__).resolve().parent.parent / 'ports.json').read_text(encoding='utf-8-sig'))
+origin = sys.argv[1].rstrip('/') if len(sys.argv) > 1 else config['services']['frontend']['url']
 email = input('Account email: ').strip()
 password = getpass.getpass('Account password (hidden): ')
 if not 12 <= len(password) <= 128:

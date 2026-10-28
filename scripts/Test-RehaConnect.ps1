@@ -1,4 +1,4 @@
-param([ValidateRange(4800,4900)][int]$Port=4899)
+param([ValidateRange(4100,4199)][int]$Port=4199)
 $ErrorActionPreference='Stop'
 $taskRoot=Split-Path -Parent $PSScriptRoot
 $jar=Join-Path $taskRoot 'backend\rehaconnect-api\target\rehaconnect-api-1.0.0.jar'

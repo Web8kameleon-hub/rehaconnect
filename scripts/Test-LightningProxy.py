@@ -3,8 +3,10 @@ import http.cookiejar
 import json
 import urllib.error
 import urllib.request
+from pathlib import Path
 
-origin = 'http://127.0.0.1:4800'
+config = json.loads((Path(__file__).resolve().parent.parent / 'ports.json').read_text(encoding='utf-8-sig'))
+origin = config['services']['frontend']['url']
 client = urllib.request.build_opener(urllib.request.HTTPCookieProcessor(http.cookiejar.CookieJar()))
 with client.open(origin + '/api/account/csrf', timeout=15) as response:
     token = json.load(response)['csrfToken']

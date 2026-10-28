@@ -1,5 +1,21 @@
 # Validation record — 28 October 2026
 
+## Latest configuration: ports.json, range 4100-4199
+
+The user superseded the earlier 4800-4900 range with `ports.json`: Longo 4100,
+Spring API 4101, Lightning 4102 and frontend 4103. The Node frontend proxies
+same-origin `/api` requests to Spring while retaining cookies and CSRF headers.
+The old `start-all.ps1` now delegates to the shared JSON-driven launcher.
+
+After this change: Maven package passed; 5 configuration validation checks,
+11 isolated API HTTP checks, 3 real Lightning account/CSRF proxy checks and
+7 frontend HTTP checks passed. Frontend checks include account/recovery paths,
+authenticated-API rejection and denial of `.env` and server-source access.
+Node server syntax passed. The four services were started and checked on the
+configured ports; no account or payment was created during these checks.
+
+Earlier port assignments below are historical validation records.
+
 ## Reserved RehaConnect ports
 
 Local defaults are now UI/API 4800, Lightning 4801, Longo 4802 and isolated HTTP

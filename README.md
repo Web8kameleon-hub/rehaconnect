@@ -16,39 +16,50 @@ Lightning SPP supplies the reused authentication and Stripe implementation.
 
 ## Run the RehaConnect UI/API
 
-Requires Java 17+ and Maven. In PowerShell:
+Requires JDK 21+, Maven, .NET SDK 10.0.204 and Node.js. From PowerShell:
 
 ```powershell
-Set-Location C:\Users\pc\Rehaconnect\backend\rehaconnect-api
-mvn package
-$env:LIGHTNING_INTERNAL_URL='http://localhost:4801'
-$env:REHACONNECT_PUBLIC_URL='http://127.0.0.1:4800'
-java -jar target\rehaconnect-api-1.0.0.jar --server.port=4800
+Set-Location C:\Users\pc\Rehaconnect
+mvn -f backend/rehaconnect-api/pom.xml package
+.\.cache\dotnet\dotnet.exe build services/lightning-spp-3.14/source/wwwmmm.csproj
+powershell -ExecutionPolicy Bypass -File .\start-all.ps1
 ```
 
-Open http://127.0.0.1:4800. Frontend sources are copied into the JAR during build.
-The UI works without Lightning; account actions report unavailability until it runs.
+The .NET SDK is installed under `.cache/dotnet` in this workspace. On another
+computer with the required SDK installed globally, use `dotnet` instead.
+Startup launches all four local services with dedicated data under `data/local`.
+Use `scripts/Stop-Local.ps1` to stop only the recorded processes. The application
+opens at http://127.0.0.1:4103; account actions use the actual Lightning service.
 
-After building Java and Lightning, `scripts/Start-Local.ps1` starts all three
-local services with dedicated data under `data/local`. Use
-`scripts/Stop-Local.ps1` to stop only the recorded processes. The required .NET
-SDK is installed in `.cache/dotnet` on this workspace.
+The single local port configuration is `ports.json`, with reserved range
+**4100-4199**:
 
-RehaConnect's reserved range is **4800-4900**. Fixed defaults: UI/API **4800**,
-dedicated Lightning authentication/billing runtime **4801**, private Longo **4802**,
-isolated HTTP-check process **4899**. The launcher rejects duplicate ports,
-out-of-range ports and occupied ports. It never stops another application to
-claim a port. Local service links and public origins are generated from the
-selected ports; runtime addresses are recorded in `.cache/local-runtime.json`.
+| Service | Port |
+| --- | --- |
+| Private Java Longo | 4100 |
+| Spring Boot API | 4101 |
+| Dedicated Lightning authentication/billing | 4102 |
+| Browser frontend and same-origin API proxy | 4103 |
+| Isolated HTTP-check process | 4199 |
 
-To select different fixed ports within the reserved range:
+After building, start all services from the repository root:
 
 ```powershell
-.\scripts\Start-Local.ps1 -Port 4810 -LightningPort 4811 -LongoPort 4812
+powershell -ExecutionPolicy Bypass -File .\start-all.ps1
 ```
 
-The Python proxy check uses 4800 by default; account registration accepts an
-explicit origin as its first argument when using custom ports.
+Open http://127.0.0.1:4103. Edit `ports.json` to change a port; keep each URL
+consistent with its port. Startup validates the JSON and rejects duplicate,
+out-of-range or occupied ports. It does not stop other applications.
+Runtime addresses are recorded in `.cache/local-runtime.json`.
+`start-all.ps1` delegates to the same launcher, avoiding nested PowerShell
+commands and PATH quoting problems. Node.js is required for the frontend proxy;
+no npm dependencies are needed. Account scripts read the same JSON configuration.
+
+Spring entries such as `server.port=4101` are file settings, not PowerShell
+commands. The launcher sets the required environment values from `ports.json`.
+Secrets still come from process environment variables; `.env` is not loaded
+automatically.
 
 ## Reused runtime
 

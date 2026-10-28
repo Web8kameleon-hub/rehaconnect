@@ -1,0 +1,31 @@
+{
+  "version": "1.0",
+  "description": "RehaConnect - All services use ports 4100-4199 to avoid conflicts",
+  "host": "127.0.0.1",
+  "portRange": {
+    "start": 4100,
+    "end": 4199
+  },
+  "services": {
+    "longo": {
+      "host": "127.0.0.1",
+      "port": 4100,
+      "url": "http://127.0.0.1:4100"
+    },
+    "rehaconnect-api": {
+      "host": "127.0.0.1",
+      "port": 4101,
+      "url": "http://127.0.0.1:4101"
+    },
+    "lightning-spp": {
+      "host": "127.0.0.1",
+      "port": 4102,
+      "url": "http://127.0.0.1:4102"
+    },
+    "frontend": {
+      "host": "127.0.0.1",
+      "port": 4103,
+      "url": "http://127.0.0.1:4103"
+    }
+  }
+}

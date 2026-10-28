@@ -8,6 +8,10 @@ Later update on the same date: the user separated `infrastructure/longo` into
 and `.gitmodules` reflect that change. The dependency list below records the
 earlier checkpoint; only Lightning remains a RehaConnect submodule.
 
+Latest port update: the user supplied `ports.json` with range 4100-4199. It now
+controls Longo 4100, API 4101, Lightning 4102 and frontend 4103. The older port
+assignments listed below record the original checkpoint, not the current runtime.
+
 ## Saved application work
 
 - Responsive clinic and patient views in English and German, with empty or
