@@ -1,0 +1,15 @@
+**/target/
+**/__pycache__/
+**/.venv/
+**/data/
+**/*.db
+**/*.db-shm
+**/*.db-wal
+**/*.bin
+.env
+.env.*
+!.env.example
+.cache/
+**/bin/
+**/obj/
+**/TestResults/
