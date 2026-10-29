@@ -34,15 +34,24 @@ def main():
                 with sync_playwright() as p:
                     browser=p.chromium.launch(headless=True)
                     try:
-                        page=browser.new_page(viewport={'width':390,'height':844})
+                        context=browser.new_context(viewport={'width':390,'height':844})
+                        page=context.new_page()
                         errors=[];pending=[]
+                        active_user={'id':'fixture-a'}
                         page.on('pageerror',lambda error:errors.append(str(error)))
                         # Fixtures stay inside this test browser; no real account or model is created.
-                        page.route('**/api/**',lambda route:route.fulfill(status=401,json={'error':'UI fixture: signed out'}))
-                        page.route('**/api/assistant',lambda route:route.fulfill(json={
+                        def fixture(route):
+                            path=route.request.url.split(':4186',1)[-1]
+                            if path=='/api/account':route.fulfill(json={'userId':active_user['id'],'email':'ui-fixture@example.test','emailVerified':True,'entitlements':[],'plans':[]})
+                            elif path=='/api/auth/me':route.fulfill(json={'csrfToken':'ui-fixture-only'})
+                            elif path=='/api/clinics':route.fulfill(json=[])
+                            else:route.fulfill(status=401,json={'error':'UI fixture: unavailable'})
+                        context.route('**/api/**',fixture)
+                        context.route('**/api/assistant',lambda route:route.fulfill(json={
                             'csrfToken':'ui-fixture-only','models':[{'id':'fixture','model':'UI fixture model'}]}))
-                        page.route('**/api/assistant/conversation',lambda route:pending.append(route))
+                        context.route('**/api/assistant/conversation',lambda route:pending.append(route))
                         page.goto('http://127.0.0.1:4186/')
+                        page.wait_for_function('!accountLoading')
                         page.get_by_role('button',name='Open assistant',exact=True).click()
                         page.get_by_text('Connected to Lightning',exact=True).wait_for()
                         page.evaluate("() => {window.__spoken=0; window.speechSynthesis.speak=()=>{window.__spoken++};}")
@@ -62,6 +71,16 @@ def main():
                         assert page.evaluate('window.__injected') is None,'Reply must be plain text'
                         assert page.locator('#ra-panel').is_hidden()
                         page.get_by_role('button',name='Open assistant',exact=True).click()
+                        page.evaluate('() => window.refreshRehaAccount()')
+                        assert page.locator('.ra-message').count()==2,'Same-account refresh must preserve chat'
+                        second=context.new_page();second.goto('http://127.0.0.1:4186/')
+                        second.wait_for_function('!accountLoading')
+                        assert page.locator('.ra-message').count()==2,'Opening a same-account tab must preserve chat'
+                        active_user['id']='fixture-b'
+                        second.evaluate('() => window.refreshRehaAccount()')
+                        page.wait_for_function('accountData?.userId === "fixture-b"')
+                        assert page.locator('.ra-message').count()==0,'Other-tab account change must clear previous chat'
+                        second.close()
                         page.locator('#view').select_option('patient')
                         assert page.locator('.ra-launch').is_visible()
                         page.locator('#language').select_option('de')
@@ -71,7 +90,7 @@ def main():
                         page.keyboard.press('Escape')
                         assert page.locator('.ra-launch').evaluate('(el)=>el===document.activeElement')
                         assert not errors,errors
-                        print('PASS UI fixtures: late reply stays silent after close, text escaping, language metadata, mobile and both views')
+                        print('PASS UI fixtures: late reply silent after close, text escaping, language metadata, cross-tab account isolation, refresh preservation, mobile and both views')
                     finally:browser.close()
             finally:
                 process.terminate()

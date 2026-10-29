@@ -18,7 +18,8 @@
 
 ## Completed checks
 
-- Java: 15 tests passed, including bridge header/cookie forwarding, upstream error
+- Java: 17 tests passed, including bounded concurrent assistant calls, unknown-length
+  oversized request rejection, multilingual message sizes, bridge header/cookie forwarding, upstream error
   propagation, rejected origins, oversized requests and disallowed action routes.
 - Maven JAR packaging passed. The final frontend assets are embedded in the JAR.
 - JavaScript syntax checks passed for the assistant, integration and proxy files.
@@ -31,6 +32,9 @@
   download, German UI and immediate logout revocation also passed.
 - Browser UI checks passed for desktop/mobile, both portal views, language changes,
   signed-out behavior, Escape/focus handling and absence of JavaScript errors.
+- Dedicated UI fixtures additionally passed pending-reply speech cancellation,
+  reply text escaping, cross-tab account isolation and same-account chat preservation.
+  These are synthetic UI regression tests, not real-account or physical-audio evidence.
 - Docker Compose configuration validated with a temporary credential-free template.
 - Docker Engine 28.3.0: image `rehaconnect:validation-20261029` built successfully.
   A temporary Linux container passed HTTP checks for the application and assistant

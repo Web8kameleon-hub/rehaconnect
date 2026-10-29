@@ -38,15 +38,16 @@ def main():
     with tempfile.TemporaryDirectory(prefix='rehaconnect-benchmark-') as data:
         env = os.environ.copy()
         env.update(REHACONNECT_PRODUCTION='false')
-        command = ['java', '-jar', str(ROOT / 'backend/rehaconnect-api/target/rehaconnect-api-1.0.0.jar'),
-                   f'--server.port={args.port}', '--server.address=127.0.0.1', '--lightning.internal-url=',
-                   '--logging.level.root=WARN', '--rehaconnect.storage-path=' + str(Path(data) / 'clinics.bin')]
         started = time.perf_counter()
         with (args.output / 'server.log').open('w', encoding='utf-8') as log:
             # Argument vector, shell=False: validated local port and generated temp
             # path are data arguments, never interpreted as shell commands.
-            process = subprocess.Popen(command, shell=False, env=env, stdout=log, stderr=subprocess.STDOUT,
-                                       creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
+            process = subprocess.Popen(
+                ['java', '-jar', str(ROOT / 'backend/rehaconnect-api/target/rehaconnect-api-1.0.0.jar'),
+                 f'--server.port={args.port}', '--server.address=127.0.0.1', '--lightning.internal-url=',
+                 '--logging.level.root=WARN', '--rehaconnect.storage-path=' + str(Path(data) / 'clinics.bin')],
+                shell=False, env=env, stdout=log, stderr=subprocess.STDOUT,
+                creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
             try:
                 base = f'http://127.0.0.1:{args.port}'
                 deadline = time.monotonic() + 60

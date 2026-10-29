@@ -19,6 +19,8 @@ Every push to main and pull request runs:
 2. Isolated HTTP authorization/failure checks.
    Browser UI fixtures additionally verify pending-reply speech cancellation,
    plain-text reply rendering, response-language metadata and mobile controls.
+   They also verify same-account refresh preservation and clearing old chat when
+   the shared account changes in another tab.
    These fixtures do not establish successful real model inference.
 3. A real measured HTTP benchmark, recorded as JSON and Markdown with commit,
    timestamp, platform, sample count, median and P95. This is not a model benchmark
