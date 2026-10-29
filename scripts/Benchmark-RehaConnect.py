@@ -45,7 +45,7 @@ def main():
         with (args.output / 'server.log').open('w', encoding='utf-8') as log:
             # Argument vector, shell=False: validated local port and generated temp
             # path are data arguments, never interpreted as shell commands.
-            process = subprocess.Popen(command, env=env, stdout=log, stderr=subprocess.STDOUT,
+            process = subprocess.Popen(command, shell=False, env=env, stdout=log, stderr=subprocess.STDOUT,
                                        creationflags=subprocess.CREATE_NO_WINDOW if os.name == 'nt' else 0)
             try:
                 base = f'http://127.0.0.1:{args.port}'
