@@ -30,7 +30,10 @@ def main():
         except subprocess.CalledProcessError:
             raise SystemExit('Wiki clone failed. Create the initial Wiki page on GitHub and verify the dedicated token has wiki access.')
         for source in (ROOT/'docs/wiki').glob('*.md'):
-            shutil.copyfile(source,checkout/source.name)
+            # Repo sources keep working .md links; Wiki routes omit extensions.
+            content=source.read_text(encoding='utf-8')
+            content=re.sub(r'\]\(([A-Za-z0-9_-]+)\.md\)',r'](\1)',content)
+            (checkout/source.name).write_text(content,encoding='utf-8')
         benchmark=ROOT/'.cache/benchmarks/benchmark.md'
         if benchmark.exists():shutil.copyfile(benchmark,checkout/'Latest-Benchmark.md')
         git('-C',str(checkout),'config','user.name','RehaConnect automation')
