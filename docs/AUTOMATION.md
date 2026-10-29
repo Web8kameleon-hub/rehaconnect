@@ -17,6 +17,9 @@ Every push to main and pull request runs:
 
 1. JavaScript syntax checks, Maven build and Java tests.
 2. Isolated HTTP authorization/failure checks.
+   Browser UI fixtures additionally verify pending-reply speech cancellation,
+   plain-text reply rendering, response-language metadata and mobile controls.
+   These fixtures do not establish successful real model inference.
 3. A real measured HTTP benchmark, recorded as JSON and Markdown with commit,
    timestamp, platform, sample count, median and P95. This is not a model benchmark
    or a production capacity guarantee.
@@ -76,10 +79,12 @@ history and retain current capability limits. Failed deploys do not publish a
 successful deployment release. `CHANGELOG.md` provides the source overview;
 per-deploy changelogs are generated automatically as release notes.
 
-The subsequent wiki job synchronizes `docs/wiki` and the actual benchmark using
-`WIKI_WRITE_TOKEN`. GitHub requires an initial Wiki page to exist before the wiki
+At the owner's request, Wiki pages currently remain in `docs/wiki`. The prepared
+Wiki job stays disabled until `WIKI_SYNC_ENABLED=true`. When enabled it synchronizes
+these sources and the actual benchmark using `WIKI_WRITE_TOKEN`.
+GitHub requires an initial Wiki page to exist before the wiki
 Git repository can be cloned. Until that one-time setup and token are present,
-wiki synchronization fails explicitly and the reviewed source pages remain in
+enabled wiki synchronization fails explicitly and the reviewed source pages remain in
 the main repository. It does not silently claim publication.
 
 Initial page: https://github.com/Web8kameleon-hub/rehaconnect/wiki/_new

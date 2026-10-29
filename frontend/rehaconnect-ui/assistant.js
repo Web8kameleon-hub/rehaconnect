@@ -38,7 +38,7 @@
     try{const data=await request('/conversation',{route:models.value,goal:`[RehaConnect; view=${document.querySelector('#view').value}; page=${location.hash.slice(1)||'dashboard'}] ${w().context}\n${goal}`,locale:document.documentElement.lang,...(q('#ra-response-language').value?{responseLanguage:q('#ra-response-language').value}:{}),allowModel:true});
       if(version!==generation){pending.remove();return;}const answer=data.text||data.Text;if(typeof answer!=='string'||!answer.trim())throw new Error('empty');
       pending.textContent=answer;pending.dir='auto';const note=document.createElement('small');note.textContent=w().review+(data.identity?.model?' · '+data.identity.model:'');pending.append(document.createElement('br'),note);
-      if(q('.ra-speech input').checked&&'speechSynthesis' in window){window.speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance(answer);speech.lang=q('#ra-response-language').value||(document.documentElement.lang==='de'?'de-DE':'en-GB');window.speechSynthesis.speak(speech);}
+      if(!panel.hidden&&q('.ra-speech input').checked&&'speechSynthesis' in window){window.speechSynthesis.cancel();const speech=new SpeechSynthesisUtterance(answer);speech.lang=q('#ra-response-language').value||(document.documentElement.lang==='de'?'de-DE':'en-GB');window.speechSynthesis.speak(speech);}
     }catch{if(version===generation){pending.textContent=w().failure;pending.classList.add('ra-error');}}
     finally{busy=false;controls();}
   });

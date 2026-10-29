@@ -49,6 +49,12 @@ jobs:
       - name: Isolated HTTP authorization checks
         shell: powershell
         run: ./scripts/Test-RehaConnect.ps1
+      - name: Install browser regression dependencies
+        run: |
+          python -m pip install -r config/ci-requirements.txt
+          python -m playwright install chromium
+      - name: Browser regression fixtures
+        run: python scripts/Test-Assistant-UI.py
       - name: Measure actual loopback HTTP timings
         run: python scripts/Benchmark-RehaConnect.py --samples 100
       - name: Benchmark summary
@@ -111,6 +117,7 @@ jobs:
           image="ghcr.io/${GITHUB_REPOSITORY,,}"
           printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
           docker build -f deploy/production/Dockerfile -t "$image:$GITHUB_SHA" -t "$image:$tag" .
+          python3 scripts/Test-Container.py --image "$image:$GITHUB_SHA"
           docker push "$image:$GITHUB_SHA"
           docker push "$image:$tag"
       - name: Publish release assets with explicit capability limits
@@ -175,7 +182,7 @@ jobs:
   wiki:
     name: Synchronize deployment wiki
     needs: release
-    if: needs.release.result == 'success'
+    if: needs.release.result == 'success' && vars.WIKI_SYNC_ENABLED == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
