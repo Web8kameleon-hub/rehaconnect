@@ -35,21 +35,54 @@ async function accountFetch(path, body) {
   }
   return response.json();
 }
-async function loadAccount() {
+let accountLoadVersion=0;
+let notifiedAccountIdentity=null;
+let accountIdentityEstablished=false;
+let accountChannel=null;
+try{if('BroadcastChannel' in window)accountChannel=new BroadcastChannel('rehaconnect.account');}catch{}
+function broadcastAccountChange(){
+  if(accountChannel){accountChannel.postMessage({type:'session-changed'});return;}
+  try{localStorage.setItem('rehaconnect.account-change',Date.now()+'-'+Math.random());}catch{}
+}
+function notifyAccountIdentity(identity,broadcast){
+  const established=accountIdentityEstablished;accountIdentityEstablished=true;
+  if(identity===notifiedAccountIdentity)return;
+  notifiedAccountIdentity=identity;
+  window.dispatchEvent(new Event('reha-account-changed'));
+  if(broadcast&&established)broadcastAccountChange();
+}
+function clearLocalAccount(broadcast){
+  accountLoadVersion++;accountLoading=false;accountData=null;clinicRows=[];window.rehaCsrf='';notifiedAccountIdentity=null;accountIdentityEstablished=true;
+  window.dispatchEvent(new Event('reha-account-changed'));
+  if(broadcast)broadcastAccountChange();
+}
+async function receiveAccountChange(){
+  clearLocalAccount(false);
+  render();
+  try{await loadAccount({broadcast:false});}catch{}
+  render();
+}
+if(accountChannel)accountChannel.onmessage=event=>{if(event.data?.type==='session-changed')receiveAccountChange();};
+else window.addEventListener('storage',event=>{if(event.key==='rehaconnect.account-change')receiveAccountChange();});
+async function loadAccount({broadcast=true}={}) {
   if(accountLoading)return;
-  accountLoading=true;
+  accountLoading=true;const version=++accountLoadVersion;let verified=false;
   try {
     const response=await fetch('/api/account',{credentials:'same-origin',signal:AbortSignal.timeout(12000)});
-    if(response.status===401){accountData=null;window.rehaCsrf='';clinicRows=[];return;}
+    if(version!==accountLoadVersion)return;
+    if(response.status===401){accountData=null;window.rehaCsrf='';clinicRows=[];verified=true;return;}
     if(!response.ok)throw new Error('serviceError');
-    accountData=await response.json();
+    const nextAccount=await response.json();
     const identity=await fetch('/api/auth/me',{credentials:'same-origin',signal:AbortSignal.timeout(12000)});
     if(!identity.ok)throw new Error('serviceError');
-    window.rehaCsrf=(await identity.json()).csrfToken;
+    const nextCsrf=(await identity.json()).csrfToken;
     const clinics=await fetch('/api/clinics',{credentials:'same-origin',signal:AbortSignal.timeout(12000)});
     if(!clinics.ok)throw new Error('serviceError');
-    clinicRows=await clinics.json();
-  } catch(error){accountData=null;clinicRows=[];window.rehaCsrf='';throw error;} finally {accountLoading=false;}
+    const nextClinics=await clinics.json();
+    if(version!==accountLoadVersion)return;
+    accountData=nextAccount;window.rehaCsrf=nextCsrf;clinicRows=nextClinics;verified=true;
+  } catch(error){if(version===accountLoadVersion){accountData=null;clinicRows=[];window.rehaCsrf='';throw error;}}
+  finally {if(version===accountLoadVersion){accountLoading=false;notifyAccountIdentity(accountData?.userId||null,broadcast&&verified);}}
 }
 window.refreshRehaAccount = async () => {await loadAccount();render();};
 window.renderIntegration = page => {
@@ -67,7 +100,7 @@ function renderAccount(host,status) {
     const title=document.createElement('h2');title.textContent=it('signedIn');host.append(title);
     const email=document.createElement('p');email.textContent=accountData.email;host.append(email);
     const logout=document.createElement('button');logout.className='primary';logout.textContent=it('logout');host.append(logout);
-    logout.addEventListener('click',async()=>{logout.disabled=true;try{await accountFetch('/api/account/logout',{});accountData=null;clinicRows=[];window.rehaCsrf='';render();}catch{status.textContent=it('serviceError');logout.disabled=false;}});
+    logout.addEventListener('click',async()=>{logout.disabled=true;try{await accountFetch('/api/account/logout',{});clearLocalAccount(true);render();}catch{status.textContent=it('serviceError');logout.disabled=false;}});
     return;
   }
   host.innerHTML=`<form id="account-form"><label>${it('email')}<input name="email" type="email" autocomplete="username" maxlength="320" required></label><label>${it('password')}<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><div class="integration-actions"><button class="primary" type="submit">${it('login')}</button><button type="button" data-action="register">${it('register')}</button><button type="button" data-action="request-reset">${it('recover')}</button><button type="button" data-action="request-verification">${it('resend')}</button></div><label>${it('token')}<input name="token" autocomplete="off" maxlength="512"></label><div class="integration-actions"><button type="button" data-action="verify">${it('verify')}</button><button type="button" data-action="reset">${it('reset')}</button></div></form>`;

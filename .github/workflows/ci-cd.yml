@@ -1,0 +1,196 @@
+name: CI, release and Hetzner deployment
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy this verified main revision to configured Hetzner host
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+concurrency:
+  group: rehaconnect-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  verify:
+    name: Java, HTTP and measured benchmark
+    runs-on: windows-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6
+        with:
+          fetch-depth: 0
+      - uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5
+        with:
+          distribution: temurin
+          java-version: '21'
+          cache: maven
+          cache-dependency-path: backend/rehaconnect-api/pom.xml
+      - uses: actions/setup-node@249970729cb0ef3589644e2896645e5dc5ba9c38 # v6
+        with:
+          node-version: '22'
+      - name: JavaScript syntax
+        shell: pwsh
+        run: |
+          foreach ($file in Get-ChildItem frontend/rehaconnect-ui -Include *.js,*.cjs -File -Recurse) {
+            node --check $file.FullName
+            if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          }
+      - name: Build and Java tests
+        run: mvn -B -f backend/rehaconnect-api/pom.xml package
+      - name: Isolated HTTP authorization checks
+        shell: powershell
+        run: ./scripts/Test-RehaConnect.ps1
+      - name: Install browser regression dependencies
+        run: |
+          python -m pip install -r config/ci-requirements.txt
+          python -m playwright install chromium
+      - name: Browser regression fixtures
+        run: python scripts/Test-Assistant-UI.py
+      - name: Measure actual loopback HTTP timings
+        run: python scripts/Benchmark-RehaConnect.py --samples 100
+      - name: Benchmark summary
+        shell: pwsh
+        run: Get-Content .cache/benchmarks/benchmark.md | Add-Content $env:GITHUB_STEP_SUMMARY
+      - name: Prepare commit-labelled deployment archive
+        shell: powershell
+        run: ./scripts/Prepare-Deploy.ps1
+      - uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
+        if: always()
+        with:
+          name: verified-build-${{ github.sha }}
+          if-no-files-found: error
+          retention-days: 30
+          include-hidden-files: true
+          path: |
+            backend/rehaconnect-api/target/rehaconnect-api-1.0.0.jar
+            backend/rehaconnect-api/target/surefire-reports/
+            .cache/benchmarks/benchmark.json
+            .cache/benchmarks/benchmark.md
+            .cache/deploy/*.zip
+            .cache/deploy/*.sha256
+
+  container:
+    name: Non-root Docker verification
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7
+        with:
+          name: verified-build-${{ github.sha }}
+      - run: docker build -f deploy/production/Dockerfile -t rehaconnect:${{ github.sha }} .
+      - run: python3 scripts/Test-Container.py --image rehaconnect:${{ github.sha }}
+
+  release:
+    name: Publish verified prerelease and image
+    needs: [verify, container, deploy]
+    if: always() && needs.verify.result == 'success' && needs.container.result == 'success' && (startsWith(github.ref, 'refs/tags/v') || needs.deploy.result == 'success')
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+        with:
+          fetch-depth: 0
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: verified-build-${{ github.sha }}
+      - name: Publish tested image to GHCR
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          tag="$GITHUB_REF_NAME"
+          if [[ "$GITHUB_REF" != refs/tags/* ]]; then tag="deploy-$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA:0:12}"; fi
+          echo "RELEASE_TAG=$tag" >> "$GITHUB_ENV"
+          image="ghcr.io/${GITHUB_REPOSITORY,,}"
+          printf '%s' "$GH_TOKEN" | docker login ghcr.io -u "$GITHUB_ACTOR" --password-stdin
+          docker build -f deploy/production/Dockerfile -t "$image:$GITHUB_SHA" -t "$image:$tag" .
+          python3 scripts/Test-Container.py --image "$image:$GITHUB_SHA"
+          docker push "$image:$GITHUB_SHA"
+          docker push "$image:$tag"
+      - name: Publish release assets with explicit capability limits
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 scripts/Release-Notes.py --tag "$RELEASE_TAG" --output .cache/release-notes.md
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            gh release upload "$RELEASE_TAG" --clobber .cache/deploy/*.zip .cache/deploy/*.sha256 .cache/benchmarks/benchmark.json .cache/benchmarks/benchmark.md
+          else
+            gh release create "$RELEASE_TAG" --target "$GITHUB_SHA" --prerelease --title "RehaConnect $RELEASE_TAG" --notes-file .cache/release-notes.md .cache/deploy/*.zip .cache/deploy/*.sha256 .cache/benchmarks/benchmark.json .cache/benchmarks/benchmark.md
+          fi
+
+  deploy:
+    name: Deploy verified revision to Hetzner
+    needs: [verify, container]
+    if: github.ref == 'refs/heads/main' && ((github.event_name == 'push' && vars.HETZNER_DEPLOY_ENABLED == 'true') || (github.event_name == 'workflow_dispatch' && inputs.deploy))
+    runs-on: ubuntu-latest
+    environment: production
+    timeout-minutes: 20
+    concurrency:
+      group: rehaconnect-production
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: verified-build-${{ github.sha }}
+      - name: Validate configuration and transfer verified archive
+        env:
+          SSH_HOST: ${{ vars.HETZNER_SSH_HOST }}
+          SSH_USER: ${{ secrets.HETZNER_SSH_USER }}
+          SSH_KEY: ${{ secrets.HETZNER_SSH_KEY }}
+          SSH_KNOWN_HOSTS: ${{ secrets.HETZNER_SSH_KNOWN_HOSTS }}
+          BASTION_HOST: ${{ vars.HETZNER_BASTION_HOST }}
+          BASTION_USER: ${{ vars.HETZNER_BASTION_USER }}
+          BASTION_KEY: ${{ secrets.HETZNER_BASTION_SSH_KEY }}
+        run: |
+          set -euo pipefail
+          : "${SSH_HOST:?Missing HETZNER_SSH_HOST}" "${SSH_USER:?Missing HETZNER_SSH_USER}" "${SSH_KEY:?Missing HETZNER_SSH_KEY}" "${SSH_KNOWN_HOSTS:?Missing HETZNER_SSH_KNOWN_HOSTS}"
+          [[ "$SSH_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] && [[ "$SSH_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SSH_KEY" > ~/.ssh/rehaconnect-deploy
+          chmod 600 ~/.ssh/rehaconnect-deploy
+          printf '%s\n' "$SSH_KNOWN_HOSTS" > ~/.ssh/known_hosts
+          printf 'Host reha-target\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/rehaconnect-deploy\n  IdentitiesOnly yes\n  BatchMode yes\n  StrictHostKeyChecking yes\n' "$SSH_HOST" "$SSH_USER" > ~/.ssh/rehaconnect-config
+          if [[ -n "$BASTION_HOST" ]]; then
+            : "${BASTION_USER:?Missing HETZNER_BASTION_USER}" "${BASTION_KEY:?Missing HETZNER_BASTION_SSH_KEY}"
+            [[ "$BASTION_HOST" =~ ^[a-zA-Z0-9][a-zA-Z0-9.-]*$ ]] && [[ "$BASTION_USER" =~ ^[a-zA-Z_][a-zA-Z0-9_-]*$ ]]
+            printf '%s\n' "$BASTION_KEY" > ~/.ssh/rehaconnect-bastion
+            chmod 600 ~/.ssh/rehaconnect-bastion
+            printf '  ProxyJump reha-bastion\nHost reha-bastion\n  HostName %s\n  User %s\n  IdentityFile ~/.ssh/rehaconnect-bastion\n  IdentitiesOnly yes\n  BatchMode yes\n  StrictHostKeyChecking yes\n' "$BASTION_HOST" "$BASTION_USER" >> ~/.ssh/rehaconnect-config
+          fi
+          ssh -F ~/.ssh/rehaconnect-config reha-target 'mkdir -p /opt/rehaconnect/incoming'
+          scp -F ~/.ssh/rehaconnect-config .cache/deploy/*.zip .cache/deploy/*.sha256 reha-target:/opt/rehaconnect/incoming/
+          archive=$(basename .cache/deploy/*.zip)
+          ssh -F ~/.ssh/rehaconnect-config reha-target "bash -s -- '$GITHUB_SHA' '$archive'" < deploy/production/deploy.sh
+      - name: Remove temporary SSH key
+        if: always()
+        run: rm -f ~/.ssh/rehaconnect-deploy ~/.ssh/rehaconnect-bastion ~/.ssh/rehaconnect-config
+
+  wiki:
+    name: Synchronize deployment wiki
+    needs: release
+    if: needs.release.result == 'success' && vars.WIKI_SYNC_ENABLED == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131
+        with:
+          name: verified-build-${{ github.sha }}
+      - name: Publish wiki sources and actual benchmark
+        env:
+          WIKI_TOKEN: ${{ secrets.WIKI_WRITE_TOKEN }}
+        run: python3 scripts/Sync-Wiki.py --repository "$GITHUB_REPOSITORY"

@@ -22,6 +22,8 @@ const files = new Map([
   ['/app.js', ['app.js','text/javascript; charset=utf-8']],
   ['/integrations.js', ['integrations.js','text/javascript; charset=utf-8']],
   ['/workspace.js', ['workspace.js','text/javascript; charset=utf-8']],
+  ['/assistant.js', ['assistant.js','text/javascript; charset=utf-8']],
+  ['/assistant.css', ['assistant.css','text/css; charset=utf-8']],
   ['/style.css', ['style.css','text/css; charset=utf-8']]
 ]);
 const server=http.createServer((request,response)=>{
@@ -40,7 +42,7 @@ const server=http.createServer((request,response)=>{
       result.on('error',()=>response.destroy());
       result.pipe(response);
     });
-    upstream.setTimeout(30000,()=>upstream.destroy(new Error('Upstream timeout')));
+    upstream.setTimeout(pathname.startsWith('/api/assistant') ? 210000 : 30000,()=>upstream.destroy(new Error('Upstream timeout')));
     upstream.on('error',()=>{
       if(response.headersSent){response.destroy();return;}
       response.writeHead(502,{'Content-Type':'application/json'}).end(JSON.stringify({error:'API unavailable'}));

@@ -81,6 +81,8 @@ def main():
         REHACONNECT_STORAGE_PATH=str(DATA/'clinics.bin'),REHACONNECT_PRODUCTION='false',
         SMTP_HOST='127.0.0.1',SMTP_PORT='4154',SMTP_USER='isolated-test',SMTP_PASSWORD=secrets.token_urlsafe(24),SMTP_FROM='test@example.test',SMTP_USE_SSL='false',
         LSPP_LICENSE_SIGNING_KEY=secrets.token_urlsafe(48))
+    env['LSPP_MODEL_ROUTES_FILE']=str(ROOT/'config/model-routes.local.json')
+    env['DOTNET_SYSTEM_GLOBALIZATION_INVARIANT']='false'
     processes=[];logs=[];mailbox=socketserver.ThreadingTCPServer(('127.0.0.1',4154),Mailbox)
     mailbox.daemon_threads=True;threading.Thread(target=mailbox.serve_forever,daemon=True).start()
     def start(name,args,cwd=ROOT):
@@ -114,6 +116,16 @@ def main():
                 page.get_by_role('button',name='Sign in',exact=True).click();page.get_by_role('button',name='Sign out',exact=True).wait_for()
             owner_email='owner-'+secrets.token_hex(5)+'@example.test';patient_email='patient-'+secrets.token_hex(5)+'@example.test'
             signup(owner_page,owner_email)
+            owner_page.get_by_role('button',name='Open assistant',exact=True).click()
+            owner_page.get_by_text('Connected to Lightning',exact=True).wait_for()
+            owner_page.locator('#ra-input').fill('Reply with one short greeting in English. Do not claim any completed actions.')
+            with owner_page.expect_response(lambda response:response.url.endswith('/api/assistant/conversation'),timeout=210000) as conversation:
+                owner_page.get_by_role('button',name='Send',exact=True).click()
+            assert conversation.value.ok, 'Assistant request failed: '+str(conversation.value.status)+' '+conversation.value.text()+' request='+str(conversation.value.request.post_data_json)
+            owner_page.locator('.ra-reply small').wait_for()
+            assert owner_page.locator('.ra-reply').inner_text().strip()
+            owner_page.get_by_role('button',name='Close assistant',exact=True).click()
+            print('PASS assistant: real Lightning session and real local Ollama response')
             owner_page.goto('http://127.0.0.1:4153/#dashboard')
             owner_page.get_by_role('button',name='Create clinic',exact=True).click()
             owner_page.locator('#clinic-form [name=name]').fill('Isolated browser test clinic')
@@ -174,7 +186,11 @@ def main():
             print('PASS edit, archive, patient publication filtering; no browser JavaScript errors')
             owner_page.screenshot(path=str(DATA/'owner-desktop.png'),full_page=True)
             patient_page.set_viewport_size({'width':390,'height':844});patient_page.screenshot(path=str(DATA/'patient-mobile.png'),full_page=True)
-            patient_page.goto('http://127.0.0.1:4153/#account');patient_page.get_by_role('button',name='Sign out',exact=True).click();patient_page.locator('#account-form').wait_for()
+            patient_page.goto('http://127.0.0.1:4153/#account')
+            with patient_page.expect_response(lambda response:response.url.endswith('/api/account/logout')) as logout:
+                patient_page.get_by_role('button',name='Sign out',exact=True).click()
+            assert logout.value.ok, 'Logout failed: '+str(logout.value.status)+' '+logout.value.text()
+            patient_page.locator('#account-form').wait_for()
             result=patient_page.evaluate("async()=>{const response=await fetch('/api/clinics');return response.status}")
             assert result==401,result
             print('PASS real logout immediately revokes clinic access')

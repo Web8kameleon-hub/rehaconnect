@@ -38,13 +38,15 @@ $settings=@{
     LONGO_URL=$portsConfig.services.longo.url;LSPP_DATA_DIR=(Join-Path $localData 'lightning');LSPP_BIND_HOST='127.0.0.1';
     LSPP_PUBLIC_ORIGIN=$publicUrl;LIGHTNING_INTERNAL_URL=$portsConfig.services.'lightning-spp'.url;
     REHACONNECT_PUBLIC_URL=$publicUrl;REHACONNECT_STORAGE_PATH=(Join-Path $localData 'clinics.bin');
-    REHACONNECT_PRODUCTION='false'
+    REHACONNECT_PRODUCTION='false';DOTNET_SYSTEM_GLOBALIZATION_INVARIANT='false'
 }
 if(Test-Path -LiteralPath $SecretsPath){
     $secrets=& (Join-Path $PSScriptRoot 'Read-Secrets.ps1') -Path $SecretsPath
     foreach($key in $secrets.Keys){$settings[$key]=$secrets[$key]}
 }elseif($PSBoundParameters.ContainsKey('SecretsPath')){throw 'The specified local secrets file does not exist.'}
 $previous=@{};$started=@()
+$modelRoutes=Join-Path $taskRoot 'config\model-routes.local.json'
+if(Test-Path -LiteralPath $modelRoutes){$settings['LSPP_MODEL_ROUTES_FILE']=$modelRoutes}
 function Wait-Ready($Url,$Process){
     for($attempt=0;$attempt -lt 120;$attempt++){
         if($Process.HasExited){throw "A local process exited before readiness. Check logs under $cache."}
