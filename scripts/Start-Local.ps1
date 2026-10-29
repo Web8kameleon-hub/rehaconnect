@@ -1,4 +1,7 @@
-param([string]$ConfigPath=(Join-Path (Split-Path -Parent $PSScriptRoot) 'ports.json'))
+param(
+    [string]$ConfigPath=(Join-Path (Split-Path -Parent $PSScriptRoot) 'ports.json'),
+    [string]$SecretsPath=(Join-Path (Split-Path -Parent $PSScriptRoot) '.env.local')
+)
 $ErrorActionPreference='Stop'
 $portsConfig=& (Join-Path $PSScriptRoot 'Get-Ports.ps1') -Path $ConfigPath
 $ConfigPath=(Resolve-Path -LiteralPath $ConfigPath).Path
@@ -37,6 +40,10 @@ $settings=@{
     REHACONNECT_PUBLIC_URL=$publicUrl;REHACONNECT_STORAGE_PATH=(Join-Path $localData 'clinics.bin');
     REHACONNECT_PRODUCTION='false'
 }
+if(Test-Path -LiteralPath $SecretsPath){
+    $secrets=& (Join-Path $PSScriptRoot 'Read-Secrets.ps1') -Path $SecretsPath
+    foreach($key in $secrets.Keys){$settings[$key]=$secrets[$key]}
+}elseif($PSBoundParameters.ContainsKey('SecretsPath')){throw 'The specified local secrets file does not exist.'}
 $previous=@{};$started=@()
 function Wait-Ready($Url,$Process){
     for($attempt=0;$attempt -lt 120;$attempt++){

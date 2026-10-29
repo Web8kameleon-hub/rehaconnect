@@ -9,6 +9,8 @@ const translations = {
 };
 Object.assign(translations.en,{account:'Account',billing:'Billing',meals:'Meal plan',messages:'Announcements',clinicIntro:'Sign in before creating a clinic. Your clinic is saved in Longo and linked to your account.'});
 Object.assign(translations.de,{account:'Konto',billing:'Abrechnung',meals:'Speiseplan',messages:'Mitteilungen',clinicIntro:'Melden Sie sich an, bevor Sie eine Klinik erstellen. Ihre Klinik wird in Longo gespeichert und mit Ihrem Konto verknüpft.'});
+Object.assign(translations.en,{feedback:'Feedback'});Object.assign(translations.de,{feedback:'Rückmeldungen'});
+Object.assign(translations.en,{rooms:'Rooms & resources'});Object.assign(translations.de,{rooms:'Räume & Ressourcen'});
 let language = 'en';
 try { language = localStorage.getItem('rehaconnect.language') || 'en'; } catch {}
 if (!translations[language]) language = 'en';
@@ -16,6 +18,8 @@ let portal = 'clinic';
 const modules = [['dashboard','▦'],['appointments','▤'],['patients','♙'],['medications','⊕'],['events','♧'],['documents','▱'],['information','ⓘ'],['settings','⚙']];
 const t = key => translations[language][key] || key;
 modules.push(['meals','▤'],['messages','▧'],['account','♙'],['billing','€']);
+modules.push(['feedback','✉']);
+modules.push(['rooms','□']);
 const content = document.querySelector('#content');
 const dialog = document.querySelector('#clinic-dialog');
 const formStatus = document.querySelector('#form-status');
@@ -50,6 +54,7 @@ function render() {
   formStatus.textContent = statusKey ? t(statusKey) : '';
   document.querySelector('#open-clinic')?.addEventListener('click', () => {statusKey='';formStatus.textContent='';dialog.showModal();});
   window.renderIntegration?.(page);
+  window.renderWorkspace?.(page);
 }
 document.querySelector('#language').addEventListener('change',event => {language=event.target.value;try {localStorage.setItem('rehaconnect.language',language);} catch {}render();});
 document.querySelector('#view').addEventListener('change',event => {portal=event.target.value;if(dialog.open)dialog.close();render();});
@@ -70,7 +75,7 @@ document.querySelector('#clinic-form').addEventListener('submit', async event =>
     if(!response.ok) throw new Error('Clinic service rejected request');
     const saved = await response.json();
     if(!saved || typeof saved !== 'object' || Array.isArray(saved)) throw new Error('Invalid service response');
-    statusKey='saveSuccess';form.reset();
+    statusKey='saveSuccess';form.reset();await window.refreshRehaAccount?.();
   } catch(error) {statusKey=error.name==='AbortError' ? 'requestTimeout' : 'saveError';}
   finally {clearTimeout(timer);busy=false;document.querySelector('#save-clinic').disabled=false;render();}
 });

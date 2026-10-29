@@ -21,6 +21,7 @@ const files = new Map([
   ['/index.html', ['index.html','text/html; charset=utf-8']],
   ['/app.js', ['app.js','text/javascript; charset=utf-8']],
   ['/integrations.js', ['integrations.js','text/javascript; charset=utf-8']],
+  ['/workspace.js', ['workspace.js','text/javascript; charset=utf-8']],
   ['/style.css', ['style.css','text/css; charset=utf-8']]
 ]);
 const server=http.createServer((request,response)=>{
@@ -29,7 +30,7 @@ const server=http.createServer((request,response)=>{
   let pathname;
   try{pathname=new URL(request.url,frontend.url).pathname;}catch{response.writeHead(400).end();return;}
   if(pathname.startsWith('/api/')) {
-    if(!['GET','POST'].includes(request.method)){response.writeHead(405).end();return;}
+    if(!['GET','POST','PUT','DELETE'].includes(request.method)){response.writeHead(405).end();return;}
     const headers={...request.headers,host:`${api.host}:${api.port}`};
     for(const key of ['connection','proxy-connection','keep-alive','upgrade','te','trailer'])delete headers[key];
     const upstream=http.request({hostname:api.host,port:api.port,path:request.url,method:request.method,headers},result=>{

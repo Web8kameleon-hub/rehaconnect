@@ -4,7 +4,7 @@ $taskRoot=Split-Path -Parent $PSScriptRoot
 $jar=Join-Path $taskRoot 'backend\rehaconnect-api\target\rehaconnect-api-1.0.0.jar'
 $logRoot=Join-Path $taskRoot '.cache\checks'
 New-Item -ItemType Directory -Force $logRoot | Out-Null
-$runtime=Start-Process java -ArgumentList @('-jar',$jar,"--server.port=$Port",'--debug=false','--logging.level.root=WARN','--lightning.internal-url=') -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logRoot 'stdout.log') -RedirectStandardError (Join-Path $logRoot 'stderr.log')
+$runtime=Start-Process java -ArgumentList @('-jar',$jar,"--server.port=$Port",'--debug=false','--logging.level.root=WARN','--lightning.internal-url=',('--rehaconnect.storage-path='+(Join-Path $logRoot 'isolated.bin'))) -WorkingDirectory $taskRoot -WindowStyle Hidden -PassThru -RedirectStandardOutput (Join-Path $logRoot 'stdout.log') -RedirectStandardError (Join-Path $logRoot 'stderr.log')
 function Assert-Http($Path,$Expected,$Method='GET',$Body=$null,$Headers=@{}) {
     try {
         $arguments=@{Uri="http://127.0.0.1:$Port$Path";Method=$Method;UseBasicParsing=$true;Headers=$Headers;TimeoutSec=5}
@@ -27,6 +27,7 @@ try {
     if(-not $ready){throw 'Server readiness timed out'}
     Assert-Http '/' 200
     Assert-Http '/integrations.js' 200
+    Assert-Http '/workspace.js' 200
     Assert-Http '/account' 200
     Assert-Http '/dashboard' 200
     Assert-Http '/api/clinics' 401
@@ -36,4 +37,12 @@ try {
     Assert-Http '/api/account/not-an-action' 404
     Assert-Http '/api/billing/webhook' 400 'POST' '{}'
     Assert-Http '/api/account/csrf' 503
+    Assert-Http '/api/clinics/unauthorized/overview' 401
+    Assert-Http '/api/clinics/unauthorized/records/patients' 401
+    Assert-Http '/api/clinics/unauthorized/members' 401
+    Assert-Http '/api/clinics/unauthorized/feedback' 401
+    Assert-Http '/api/clinics/unauthorized/documents/unauthorized/download' 401
+    Assert-Http '/api/clinics/unauthorized/records/messages' 401 'POST' '{}'
+    Assert-Http '/api/clinics/unauthorized' 401 'PUT' '{}'
+    Assert-Http '/api/clinics/unauthorized/records/messages/unauthorized' 401 'DELETE'
 } finally {if(-not $runtime.HasExited){Stop-Process -Id $runtime.Id}}

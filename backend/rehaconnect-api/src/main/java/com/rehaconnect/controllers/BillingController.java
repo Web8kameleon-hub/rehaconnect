@@ -11,12 +11,14 @@ import org.springframework.web.server.ResponseStatusException;
 import java.net.URI;
 import java.time.Duration;
 import java.util.Set;
+import com.rehaconnect.clients.InternalAuthClient;
 
 /** Transparent boundary to the copied Lightning account/Stripe implementation. */
 @RestController
 public class BillingController {
     private final String base,origin;
     private final boolean production;
+    private final InternalAuthClient auth;
     private final RestTemplate http=transport();
     private static RestTemplate transport(){
         var factory=new JdkClientHttpRequestFactory(java.net.http.HttpClient.newBuilder()
@@ -26,8 +28,8 @@ public class BillingController {
     }
     private static final Set<String> ACTIONS=Set.of("csrf","login","register","logout","request-reset","request-verification","verify","reset","checkout","billing","retry-email");
     public BillingController(@Value("${lightning.internal-url:}") String base,
-            @Value("${rehaconnect.public-url}") String origin,@Value("${rehaconnect.production:false}") boolean production){
-        this.base=base.replaceAll("/+$","");this.origin=origin.replaceAll("/+$","");this.production=production;
+            @Value("${rehaconnect.public-url}") String origin,@Value("${rehaconnect.production:false}") boolean production,InternalAuthClient auth){
+        this.base=base.replaceAll("/+$","");this.origin=origin.replaceAll("/+$","");this.production=production;this.auth=auth;
     }
     @RequestMapping(value={"/api/account","/api/account/{action}"},method={RequestMethod.GET,RequestMethod.POST})
     public ResponseEntity<byte[]> account(@PathVariable(required=false) String action,@RequestBody(required=false) byte[] body,
@@ -38,6 +40,7 @@ public class BillingController {
             throw new ResponseStatusException(HttpStatus.FORBIDDEN);
         if(body!=null && body.length>16384)throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE);
         var result=forward("/api/account"+(action==null ? "" : "/"+action),HttpMethod.valueOf(request.getMethod()),body,request);
+        if(post&&result.getStatusCode().is2xxSuccessful()&&Set.of("login","logout","reset","verify").contains(action))auth.invalidate();
         if(post && "logout".equals(action) && result.getStatusCode().is2xxSuccessful() && request.getSession(false)!=null)request.getSession(false).invalidate();
         return result;
     }

@@ -6,13 +6,15 @@ if(recoveryMatch){try{recoveryToken=decodeURIComponent(recoveryMatch[1]);}catch{
 else if(location.pathname==='/account'&&!location.hash)history.replaceState(null,'','/account#account');
 else if(location.pathname==='/dashboard'&&new URLSearchParams(location.search).has('purchase'))history.replaceState(null,'','/dashboard#billing');
 let accountData = null;
-let accountLoading = false;
+let accountLoading = true;
 let clinicRows = [];
 let accountRequest = 0;
 const integrationText = {
  en:{account:'Account',billing:'Billing',email:'Email address',password:'Password',login:'Sign in',register:'Create account',logout:'Sign out',recover:'Reset password',resend:'Resend verification email',verify:'Verify email',reset:'Set new password',token:'Recovery or verification token',accountIntro:'Sign in with your account. New accounts require email verification.',billingIntro:'Subscriptions and payments are managed securely through Stripe.',signedIn:'Signed in',signedOut:'Sign in to continue',serviceError:'The service is unavailable. Your request was not confirmed.',invalid:'Your request could not be accepted. Check your details or recovery link.',emailNotice:'Check your email for the next step. Delivery depends on the configured email service.',loginFailed:'Sign-in failed. Check your credentials and verify your email.',noClinic:'Create a clinic before starting billing.',chooseClinic:'Clinic',plans:'Available plans',noPlans:'No purchase plans are configured.',subscribe:'Continue to Stripe',manageBilling:'Manage billing in Stripe',entitlements:'Your subscriptions',noEntitlements:'No subscription has been reported for this account.',expires:'Valid until',working:'Please wait…',accountReady:'Your account is connected.',refresh:'Refresh',pendingPayment:'Returning from Stripe does not confirm payment. Subscription status is reported by the server.',clinicSaved:'Clinic saved.',clinicIntro:'Sign in before creating a clinic. Your clinic is saved in Longo and linked to your account.'},
  de:{account:'Konto',billing:'Abrechnung',email:'E-Mail-Adresse',password:'Passwort',login:'Anmelden',register:'Konto erstellen',logout:'Abmelden',recover:'Passwort zurücksetzen',resend:'Bestätigungs-E-Mail erneut senden',verify:'E-Mail bestätigen',reset:'Neues Passwort festlegen',token:'Wiederherstellungs- oder Bestätigungstoken',accountIntro:'Melden Sie sich mit Ihrem Konto an. Neue Konten erfordern eine E-Mail-Bestätigung.',billingIntro:'Abonnements und Zahlungen werden sicher über Stripe verwaltet.',signedIn:'Angemeldet',signedOut:'Melden Sie sich an, um fortzufahren',serviceError:'Der Dienst ist nicht verfügbar. Ihre Anfrage wurde nicht bestätigt.',invalid:'Ihre Anfrage wurde nicht angenommen. Prüfen Sie Ihre Angaben oder den Wiederherstellungslink.',emailNotice:'Prüfen Sie Ihre E-Mails für den nächsten Schritt. Die Zustellung hängt vom eingerichteten E-Mail-Dienst ab.',loginFailed:'Anmeldung fehlgeschlagen. Prüfen Sie Ihre Zugangsdaten und bestätigen Sie Ihre E-Mail.',noClinic:'Erstellen Sie vor der Abrechnung eine Klinik.',chooseClinic:'Klinik',plans:'Verfügbare Tarife',noPlans:'Es sind keine Tarife zum Kauf eingerichtet.',subscribe:'Weiter zu Stripe',manageBilling:'Abrechnung bei Stripe verwalten',entitlements:'Ihre Abonnements',noEntitlements:'Für dieses Konto wurde kein Abonnement gemeldet.',expires:'Gültig bis',working:'Bitte warten…',accountReady:'Ihr Konto ist verbunden.',refresh:'Aktualisieren',pendingPayment:'Die Rückkehr von Stripe bestätigt keine Zahlung. Der Abonnementstatus wird vom Server gemeldet.',clinicSaved:'Klinik gespeichert.',clinicIntro:'Melden Sie sich an, bevor Sie eine Klinik erstellen. Ihre Klinik wird in Longo gespeichert und mit Ihrem Konto verknüpft.'}
 };
+Object.assign(integrationText.en,{verified:'Email verified. Sign in with your password.',passwordReset:'Password reset. Sign in with your new password.'});
+Object.assign(integrationText.de,{verified:'E-Mail best?tigt. Melden Sie sich mit Ihrem Passwort an.',passwordReset:'Passwort zur?ckgesetzt. Melden Sie sich mit Ihrem neuen Passwort an.'});
 const it = key => integrationText[language][key] || key;
 Object.assign(integrationText.en,{emailUnavailable:'Your account was saved, but the verification email could not be sent. Configure the email service, then request a new verification email. Sign-in remains blocked.',emailUnverified:'Your email is not verified. Use the verification link or request a new verification email.'});
 Object.assign(integrationText.de,{emailUnavailable:'Ihr Konto wurde gespeichert, aber die Bestätigungs-E-Mail konnte nicht gesendet werden. Richten Sie den E-Mail-Dienst ein und fordern Sie eine neue Bestätigungs-E-Mail an. Die Anmeldung bleibt gesperrt.',emailUnverified:'Ihre E-Mail ist nicht bestätigt. Verwenden Sie den Bestätigungslink oder fordern Sie eine neue Bestätigungs-E-Mail an.'});
@@ -47,7 +49,7 @@ async function loadAccount() {
     const clinics=await fetch('/api/clinics',{credentials:'same-origin',signal:AbortSignal.timeout(12000)});
     if(!clinics.ok)throw new Error('serviceError');
     clinicRows=await clinics.json();
-  } finally {accountLoading=false;}
+  } catch(error){accountData=null;clinicRows=[];window.rehaCsrf='';throw error;} finally {accountLoading=false;}
 }
 window.refreshRehaAccount = async () => {await loadAccount();render();};
 window.renderIntegration = page => {
@@ -81,7 +83,7 @@ function renderAccount(host,status) {
       await accountFetch('/api/account/'+action,{email,password,token});
       form.elements.password.value='';form.elements.token.value='';
       if(action==='login'){await loadAccount();render();}
-      else status.textContent=it(['register','request-reset','request-verification'].includes(action)?'emailNotice':'accountReady');
+      else status.textContent=it(['register','request-reset','request-verification'].includes(action)?'emailNotice':action==='verify'?'verified':'passwordReset');
     } catch(error){status.textContent=it(error.message in integrationText[language]?error.message:'serviceError');}
     finally {form.querySelectorAll('button').forEach(button=>button.disabled=false);}
   }
@@ -120,4 +122,4 @@ async function redirectStripe(path,body,expectedHost,button,status) {
   try {const result=await accountFetch(path,body);const url=new URL(result.url);if(url.protocol!=='https:'||url.hostname!==expectedHost)throw new Error();location.assign(url.href);}
   catch{status.textContent=it('serviceError');button.disabled=false;}
 }
-window.addEventListener('DOMContentLoaded',async()=>{const version=++accountRequest;try{await loadAccount();if(version===accountRequest)render();}catch{if(['account','billing'].includes(currentPage()))document.querySelector('#integration-status').textContent=it('serviceError');}});
+window.addEventListener('DOMContentLoaded',async()=>{const version=++accountRequest;accountLoading=false;try{await loadAccount();if(version===accountRequest)render();}catch{render();const status=document.querySelector('#integration-status')||document.createElement('p');status.textContent=it('serviceError');if(!status.isConnected)document.querySelector('#content').append(status);}});

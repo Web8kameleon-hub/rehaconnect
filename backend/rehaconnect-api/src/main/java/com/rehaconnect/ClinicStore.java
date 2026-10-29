@@ -32,6 +32,7 @@ public class ClinicStore {
         if (clinic == null || !owner.equals(clinic.get("owner_id"))) throw new ResponseStatusException(HttpStatus.NOT_FOUND);
         return clinic.toMap();
     }
+    LongoStore storage() { return store; }
     private static String text(Map<String,Object> body, String key, int max) {
         if (!(body.get(key) instanceof String value) || value.isBlank() || value.trim().length()>max)
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST,"Invalid clinic field");

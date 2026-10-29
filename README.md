@@ -58,8 +58,7 @@ no npm dependencies are needed. Account scripts read the same JSON configuration
 
 Spring entries such as `server.port=4101` are file settings, not PowerShell
 commands. The launcher sets the required environment values from `ports.json`.
-Secrets still come from process environment variables; `.env` is not loaded
-automatically.
+Secrets come from process environment variables or the optional, ignored `.env.local` file. Copy `config/secrets.example.env` to `.env.local` and enter your own mail/Stripe settings locally. The launcher reads an explicit allowlist without evaluating shell commands, printing values or changing system-wide settings.
 
 ## Reused runtime
 
@@ -88,7 +87,7 @@ Checkout, billing portal, webhook and fulfillment code is used through a local
 proxy. No production source or existing customer data has been changed.
 
 See `docs/REUSE.md` for provenance, behavior and limitations, and `.env.example`
-for configuration names. Spring does not automatically read `.env` files.
+for configuration names. Spring does not automatically read `.env` files. The launcher reads only allowlisted secrets from `.env.local`.
 Configure a dedicated Lightning data directory and private Java Longo runtime,
 using the source's existing deployment/runtime instructions. Lightning requires
 .NET SDK 10.0.204 and its package/native dependencies. Registration requires a
@@ -99,21 +98,67 @@ Local account navigation includes registration, verification, password recovery,
 login/logout, current subscriptions and Stripe actions. Billing is account-level,
 not yet a subscription per clinic. Payment return URLs do not prove payment.
 
-Clinic creation/listing uses validated Lightning identities and copied Java Longo
-storage, with server-enforced ownership. Additional staff and patient roles,
-scheduling, meal publishing, announcements and document workflows remain open.
-Portal switching is a preview control, not authorization.
+## Clinic workflows
+
+Clinic administrators can create clinics and assign admin, staff or patient access
+to verified account email addresses. Staff can manage patient directory entries,
+appointments, clinic-provided medication information, events, announcements,
+meal plans, general PDF documents, rooms/resources and clinic information. Entries support draft,
+published and archived states. Concurrent stale edits and overlapping published
+appointments for a patient, room or therapist are rejected.
+
+Patients see their own appointments and clinic-provided medication plan, plus
+published clinic or patient-specific content. They can join/leave events, record
+an intake, send feedback, download authorized PDFs, export calendar entries and
+print a medication plan to paper/PDF. Optional browser reminders run only while
+the page is open and notifications are permitted; no background delivery is
+promised. Displayed metrics are computed from actual saved records.
+
+The portal view follows the selected clinic's real server-assigned role. It is
+not an authorization control. Each data operation checks clinic membership and
+record visibility on the server. Role changes take effect on the next request.
+Only successful Lightning session verification is cached for at most 20 seconds
+to avoid repeated upstream calls. App login/logout/password reset clear that
+cache; session revocation performed directly outside RehaConnect can take up to
+20 seconds to be reflected. Nothing is accepted as verified without an actual
+upstream response. API responses are marked no-store.
+
+Records, roles and their latest 2,000 audit events commit together in one Longo
+clinic document. PDF uploads are limited to 5 MB and delivered as attachments;
+file-signature checking is not a malware scan. The embedded clinic store supports
+one application instance per data file. Production security, backup/restore,
+retention policies and clinical-data approval remain deployment responsibilities.
+
+## Email and Stripe activation
+
+The complete local registration/verification/login flow is tested against real
+Lightning and a local test SMTP mailbox. This does not prove delivery by your
+production mail provider. The existing user account is not marked verified by
+setup or tests. Configure your actual SMTP/Resend values, restart, and request a
+new verification email from Account. Stripe similarly requires actual keys and
+configured RehaConnect plans. No prices or successful payments are fabricated.
+
+TideWave remains available in the reused Lightning source. No sensor feed or
+Tide processing is claimed for uploaded documents; uploads preserve the original
+PDF bytes.
 
 ## Checks
 
 ```powershell
 node --check frontend/rehaconnect-ui/app.js
 node --check frontend/rehaconnect-ui/integrations.js
+node --check frontend/rehaconnect-ui/workspace.js
 powershell -ExecutionPolicy Bypass -File scripts/Test-RehaConnect.ps1
 ```
 
 The HTTP checks start an isolated local process and verify static assets,
 unauthenticated rejection, CSRF rejection, webhook signature-header requirements
 and service-unavailable behavior. They do not create accounts or make payments.
-See `docs/VALIDATION.md` for actual validation results and remaining limits.
+Backend tests use isolated real Longo storage. Run `mvn test` in the API project.
+`scripts/Test-Workspace-E2E.py` runs real browser forms, Lightning, Java Longo and
+an isolated SMTP mailbox on 4150-4154. It requires Python Playwright and its
+Chromium browser, plus built application artifacts. Its synthetic users and
+records stay under `.cache/workspace-e2e`, not in the real application's data.
+No production account is changed and no external email or payment is sent.
+See `docs/VALIDATION-2026-10-29.md` and `docs/WORKSPACE-API.md` for current acceptance results and API details. Earlier results remain in `docs/VALIDATION.md`.
 

@@ -55,11 +55,20 @@ different components. No IoT readings, sync guarantees or document-processing
 results are invented. TideWave has not yet been connected to a RehaConnect upload
 flow; its source is available in the copied Lightning checkout.
 
-## Open work
+## Current implementation
 
-- Connect and verify dedicated runtime configuration and email delivery.
-- Verify real-user registration/login and Stripe test-mode purchase with the
-  user's configured RehaConnect plans; no credentials or prices are assumed.
-- Add clinic staff/patient roles, membership invitations and audit events.
-- Complete scheduling, meal plans, announcements, documents and medication display.
-- Verify privacy, operations and deployment before patient-data use.
+Clinic membership/roles, patient directory, appointments, clinic-provided
+medication display/intake logging, event registration, meal plans, announcements,
+PDF upload/download, feedback and audit history are now implemented against real
+Longo persistence. See README.md and WORKSPACE-API.md for the authorization model.
+The real browser workflow is tested with isolated SMTP and account data.
+
+## External configuration and deployment
+
+- Supply real email-provider and Stripe configuration through `.env.local` or the
+  process environment. Live mail delivery and a real Stripe purchase are not
+  claimed by local test results.
+- Review privacy, operations, backups, retention and clinical-data use before
+  deployment. This work is not a production clinical-system certification.
+- TideWave is present upstream but is not used to claim document-processing or
+  IoT results in this application.
