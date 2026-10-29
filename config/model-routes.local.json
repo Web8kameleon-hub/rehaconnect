@@ -1,0 +1,4 @@
+[
+  {"id":"conversation","endpoint":"http://127.0.0.1:11434","model":"llama3.1:8b","provider":"ollama","remote":false},
+  {"id":"vision","endpoint":"http://127.0.0.1:11434","model":"llava:7b","provider":"ollama","remote":false}
+]

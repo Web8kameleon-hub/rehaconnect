@@ -28,6 +28,11 @@ try {
     Assert-Http '/' 200
     Assert-Http '/integrations.js' 200
     Assert-Http '/workspace.js' 200
+    Assert-Http '/assistant.js' 200
+    Assert-Http '/assistant.css' 200
+    Assert-Http '/api/assistant' 503
+    Assert-Http '/api/assistant/conversation' 403 'POST' '{}'
+    Assert-Http '/api/assistant/execute' 404 'POST' '{}'
     Assert-Http '/account' 200
     Assert-Http '/dashboard' 200
     Assert-Http '/api/clinics' 401

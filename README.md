@@ -60,6 +60,29 @@ Spring entries such as `server.port=4101` are file settings, not PowerShell
 commands. The launcher sets the required environment values from `ports.json`.
 Secrets come from process environment variables or the optional, ignored `.env.local` file. Copy `config/secrets.example.env` to `.env.local` and enter your own mail/Stripe settings locally. The launcher reads an explicit allowlist without evaluating shell commands, printing values or changing system-wide settings.
 
+## Assistant and deployment preparation
+
+The floating assistant is available in clinic and patient views. It forwards
+authenticated conversations to Lightning's existing workflow API and uses actual
+configured Ollama models. Sign-in and email verification remain required. Local
+model routes are in `config/model-routes.local.json`; the launcher enables .NET
+language cultures required by Lightning's conversation API.
+
+Response-language selection includes Albanian, German, English, French, Italian,
+Spanish, Portuguese, Dutch, Polish, Turkish, Arabic and Ukrainian. Model accuracy
+in those languages has not been established. Browser dictation requires explicit
+activation and may use the browser provider's speech service. Speech playback
+depends on installed browser voices; text remains available.
+
+Production packaging instructions are in `deploy/production/README.md`. After a
+reviewed commit and successful build, run `scripts/Prepare-Deploy.ps1` to create a
+commit-labelled ZIP and SHA256 under `.cache/deploy`. The archive excludes local
+accounts, clinic data and secrets. This prepares files; it does not deploy them.
+
+See `docs/DEPLOYMENT-VALIDATION-2026-10-29.md` for verified behavior and remaining
+integration limits. The assistant does not yet retrieve clinic documents or
+authoritative legal/clinical sources, and Gemma/Kloud are not connected.
+
 ## Reused runtime
 
 Longo's independent repository is now

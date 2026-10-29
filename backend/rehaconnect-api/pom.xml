@@ -38,6 +38,8 @@
                     <include>app.js</include>
                     <include>integrations.js</include>
                     <include>workspace.js</include>
+                    <include>assistant.js</include>
+                    <include>assistant.css</include>
                 </includes>
             </resource>
         </resources>

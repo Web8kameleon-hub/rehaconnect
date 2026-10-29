@@ -91,7 +91,7 @@ public class WorkspaceService {
         if(!Objects.equals(body.get("version"),data.getOrDefault("updated_at",data.get("created_at"))))throw error(HttpStatus.CONFLICT);
         String name=text(body,"name",160,true),address=text(body,"address",300,true),zone=text(body,"timezone",80,true);
         try{ZoneId.of(zone);}catch(Exception e){throw error(HttpStatus.BAD_REQUEST);}
-        data.put("name",name);data.put("address",address);data.put("timezone",zone);data.put("updated_at",Instant.now().toString());
+        data.put("name",name);data.put("address",address);data.put("timezone",zone);data.put("updated_at",nextVersion(data));
         audit(data,user,"update:clinic",clinic);commit(clinic,data);return summary(data,user);
     }
     private Map<String,Object> record(Map<String,Object> data,String type,String id){
@@ -162,7 +162,7 @@ public class WorkspaceService {
         row.put("patient_id",text(body,"patient_id",100,false));
         for(String field:FIELDS.get(type))row.put(field,text(body,field,field.equals("allergens")?2000:400,false));
         validate(data,row,type);
-        row.put("created_at",previous==null?Instant.now().toString():previous.get("created_at"));row.put("updated_at",Instant.now().toString());
+        row.put("created_at",previous==null?Instant.now().toString():previous.get("created_at"));row.put("updated_at",nextVersion(previous));
         if(previous!=null)for(String field:List.of("attachment","filename","registrations","intakes"))if(previous.containsKey(field))row.put(field,previous.get(field));
         if(type.equals("documents")){
             String encoded=text(body,"content_base64",7_000_000,false);
@@ -177,8 +177,16 @@ public class WorkspaceService {
         rows(data,"records").add(row);audit(data,user,(previous==null?"create:":"update:")+type,identifier);commit(clinic,data);
         return view(row,user,role);
     }
+    private static String nextVersion(Map<String,Object> previous){
+        Instant now=Instant.now();
+        if(previous!=null && previous.get("updated_at") instanceof String value){
+            Instant before=Instant.parse(value);
+            if(!now.isAfter(before))now=before.plusNanos(1);
+        }
+        return now.toString();
+    }
     public synchronized void archive(String clinic,String type,String id,Identity user) throws IOException{
-        var data=read(clinic);writeRole(role(data,user));var row=record(data,type,id);row.put("status","archived");row.put("updated_at",Instant.now().toString());
+        var data=read(clinic);writeRole(role(data,user));var row=record(data,type,id);row.put("status","archived");row.put("updated_at",nextVersion(row));
         audit(data,user,"archive:"+type,id);commit(clinic,data);
     }
     public synchronized List<Map<String,Object>> members(String clinic,Identity user){

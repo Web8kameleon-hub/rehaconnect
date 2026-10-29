@@ -1,0 +1,8 @@
+**
+!deploy/
+!deploy/production/
+!deploy/production/Dockerfile
+!backend/
+!backend/rehaconnect-api/
+!backend/rehaconnect-api/target/
+!backend/rehaconnect-api/target/rehaconnect-api-1.0.0.jar

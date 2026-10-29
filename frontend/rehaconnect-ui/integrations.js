@@ -49,7 +49,7 @@ async function loadAccount() {
     const clinics=await fetch('/api/clinics',{credentials:'same-origin',signal:AbortSignal.timeout(12000)});
     if(!clinics.ok)throw new Error('serviceError');
     clinicRows=await clinics.json();
-  } catch(error){accountData=null;clinicRows=[];window.rehaCsrf='';throw error;} finally {accountLoading=false;}
+  } catch(error){accountData=null;clinicRows=[];window.rehaCsrf='';throw error;} finally {accountLoading=false;window.dispatchEvent(new Event('reha-account-changed'));}
 }
 window.refreshRehaAccount = async () => {await loadAccount();render();};
 window.renderIntegration = page => {
@@ -67,7 +67,7 @@ function renderAccount(host,status) {
     const title=document.createElement('h2');title.textContent=it('signedIn');host.append(title);
     const email=document.createElement('p');email.textContent=accountData.email;host.append(email);
     const logout=document.createElement('button');logout.className='primary';logout.textContent=it('logout');host.append(logout);
-    logout.addEventListener('click',async()=>{logout.disabled=true;try{await accountFetch('/api/account/logout',{});accountData=null;clinicRows=[];window.rehaCsrf='';render();}catch{status.textContent=it('serviceError');logout.disabled=false;}});
+    logout.addEventListener('click',async()=>{logout.disabled=true;try{await accountFetch('/api/account/logout',{});accountData=null;clinicRows=[];window.rehaCsrf='';window.dispatchEvent(new Event('reha-account-changed'));render();}catch{status.textContent=it('serviceError');logout.disabled=false;}});
     return;
   }
   host.innerHTML=`<form id="account-form"><label>${it('email')}<input name="email" type="email" autocomplete="username" maxlength="320" required></label><label>${it('password')}<input name="password" type="password" autocomplete="current-password" maxlength="128" required></label><div class="integration-actions"><button class="primary" type="submit">${it('login')}</button><button type="button" data-action="register">${it('register')}</button><button type="button" data-action="request-reset">${it('recover')}</button><button type="button" data-action="request-verification">${it('resend')}</button></div><label>${it('token')}<input name="token" autocomplete="off" maxlength="512"></label><div class="integration-actions"><button type="button" data-action="verify">${it('verify')}</button><button type="button" data-action="reset">${it('reset')}</button></div></form>`;

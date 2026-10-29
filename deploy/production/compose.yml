@@ -1,0 +1,33 @@
+services:
+  rehaconnect:
+    build:
+      context: ../..
+      dockerfile: deploy/production/Dockerfile
+    image: rehaconnect:${RELEASE_ID:?Set RELEASE_ID to the reviewed commit}
+    restart: unless-stopped
+    env_file:
+      - .env.production
+    environment:
+      REHACONNECT_PRODUCTION: "true"
+      SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+    ports:
+      - "127.0.0.1:4103:4101"
+    volumes:
+      - clinic-data:/app/data
+    networks:
+      - lightning
+    read_only: true
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=128m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  clinic-data:
+
+networks:
+  lightning:
+    external: true
+    name: ${LIGHTNING_DOCKER_NETWORK:?Set the existing private Lightning network}

@@ -19,11 +19,11 @@ public class BillingController {
     private final String base,origin;
     private final boolean production;
     private final InternalAuthClient auth;
-    private final RestTemplate http=transport();
-    private static RestTemplate transport(){
+    private final RestTemplate http=transport(25),assistantHttp=transport(200);
+    private static RestTemplate transport(int timeout){
         var factory=new JdkClientHttpRequestFactory(java.net.http.HttpClient.newBuilder()
                 .connectTimeout(Duration.ofSeconds(3)).followRedirects(java.net.http.HttpClient.Redirect.NEVER).build());
-        factory.setReadTimeout(Duration.ofSeconds(25));
+        factory.setReadTimeout(Duration.ofSeconds(timeout));
         return new RestTemplate(factory);
     }
     private static final Set<String> ACTIONS=Set.of("csrf","login","register","logout","request-reset","request-verification","verify","reset","checkout","billing","retry-email");
@@ -51,6 +51,20 @@ public class BillingController {
         if(body.length>1048576)throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE);
         return forward("/api/stripe/webhook",HttpMethod.POST,body,request);
     }
+    /** Narrow assistant bridge; Lightning retains session and workspace CSRF authorization. */
+    @RequestMapping(value={"/api/assistant","/api/assistant/{action}"},method={RequestMethod.GET,RequestMethod.POST})
+    public ResponseEntity<byte[]> assistant(@PathVariable(required=false) String action,
+            @RequestBody(required=false) byte[] body,HttpServletRequest request){
+        boolean post=request.getMethod().equals("POST");
+        if(action==null && !post)return forward("/api/workflow",HttpMethod.GET,null,request);
+        if(!post || !Set.of("conversation","discover").contains(action==null?"":action))
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND);
+        if(!origin.equals(request.getHeader("Origin")) || request.getContentType()==null ||
+                !request.getContentType().split(";")[0].equalsIgnoreCase("application/json"))
+            throw new ResponseStatusException(HttpStatus.FORBIDDEN);
+        if(body==null || body.length>16384)throw new ResponseStatusException(HttpStatus.PAYLOAD_TOO_LARGE);
+        return forward("/api/workflow/"+action,HttpMethod.POST,body,request);
+    }
     private ResponseEntity<byte[]> forward(String path,HttpMethod method,byte[] body,HttpServletRequest request){
         if(base.isBlank())throw new ResponseStatusException(HttpStatus.SERVICE_UNAVAILABLE,"Lightning not configured");
         var headers=new HttpHeaders();headers.setContentType(MediaType.APPLICATION_JSON);
@@ -59,7 +73,7 @@ public class BillingController {
         var uri=URI.create(base);
         headers.set("Origin",production ? origin : uri.getScheme()+"://"+uri.getAuthority());
         try {
-            var result=http.exchange(base+path,method,new HttpEntity<>(body,headers),byte[].class);
+            var result=(path.startsWith("/api/workflow")?assistantHttp:http).exchange(base+path,method,new HttpEntity<>(body,headers),byte[].class);
             var outgoing=new HttpHeaders();outgoing.setCacheControl("no-store");outgoing.setContentType(MediaType.APPLICATION_JSON);
             if(result.getHeaders().get(HttpHeaders.SET_COOKIE)!=null)outgoing.put(HttpHeaders.SET_COOKIE,result.getHeaders().get(HttpHeaders.SET_COOKIE));
             return new ResponseEntity<>(result.getBody(),outgoing,result.getStatusCode());
