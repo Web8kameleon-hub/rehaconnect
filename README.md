@@ -62,6 +62,13 @@ Secrets come from process environment variables or the optional, ignored `.env.l
 
 ## Assistant and deployment preparation
 
+CI/CD, measured benchmarks, release changelogs, Wiki synchronization and the
+main-only branch policy are documented in [docs/AUTOMATION.md](docs/AUTOMATION.md).
+Successful main builds deploy automatically once the verified Hetzner credentials
+and `HETZNER_DEPLOY_ENABLED` are configured. Each successful deploy publishes its
+own release artifacts and benchmark. The main server currently rejects the tested
+SSH identity, so production deployment is not enabled yet.
+
 The floating assistant is available in clinic and patient views. It forwards
 authenticated conversations to Lightning's existing workflow API and uses actual
 configured Ollama models. Sign-in and email verification remain required. Local

@@ -1,5 +1,11 @@
 # RehaConnect deployment preparation
 
+The automated GitHub Actions flow, Hetzner bastion settings and Cloudflare Tunnel
+profile are described in `docs/AUTOMATION.md`. The pipeline measures benchmarks
+on every verified build and generates a release/changelog after every successful
+deployment. Server authentication remains a prerequisite; this preparation does
+not claim that production deployment has been activated.
+
 This package deploys RehaConnect with its frontend embedded in the Spring Boot
 JAR. It connects to an operator-configured Lightning service. It does not deploy,
 replace, or change the existing Lightning production service or its customer data.

@@ -5,17 +5,18 @@ services:
       dockerfile: deploy/production/Dockerfile
     image: rehaconnect:${RELEASE_ID:?Set RELEASE_ID to the reviewed commit}
     restart: unless-stopped
-    env_file:
-      - .env.production
     environment:
       REHACONNECT_PRODUCTION: "true"
       SERVER_SERVLET_SESSION_COOKIE_SECURE: "true"
+      LIGHTNING_INTERNAL_URL: ${LIGHTNING_INTERNAL_URL:?Set the private Lightning URL}
+      REHACONNECT_PUBLIC_URL: ${REHACONNECT_PUBLIC_URL:?Set the HTTPS public URL}
     ports:
       - "127.0.0.1:4103:4101"
     volumes:
       - clinic-data:/app/data
     networks:
       - lightning
+      - private
     read_only: true
     tmpfs:
       - /tmp:rw,noexec,nosuid,size=128m
@@ -24,10 +25,24 @@ services:
     security_opt:
       - no-new-privileges:true
 
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    profiles: [cloudflare]
+    restart: unless-stopped
+    command: tunnel --no-autoupdate run
+    environment:
+      TUNNEL_TOKEN: ${CLOUDFLARE_TUNNEL_TOKEN:-}
+    networks:
+      - private
+    read_only: true
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+
 volumes:
   clinic-data:
 
 networks:
+  private:
   lightning:
     external: true
     name: ${LIGHTNING_DOCKER_NETWORK:?Set the existing private Lightning network}

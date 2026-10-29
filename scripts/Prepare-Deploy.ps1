@@ -15,14 +15,17 @@ New-Item -ItemType Directory -Path (Join-Path $stage 'docs') -Force | Out-Null
 Copy-Item -LiteralPath $jar -Destination (Join-Path $stage 'backend\rehaconnect-api\target')
 New-Item -ItemType Directory -Path (Join-Path $stage 'deploy\production') -Force | Out-Null
 # An explicit allowlist excludes credentials and local operator files.
-foreach($name in @('Dockerfile','compose.yml','.env.example','nginx.conf.example','README.md')){
+foreach($name in @('Dockerfile','compose.yml','.env.example','nginx.conf.example','README.md','deploy.sh')){
     Copy-Item -LiteralPath (Join-Path $taskRoot ('deploy\production\'+$name)) -Destination (Join-Path $stage 'deploy\production') -Force
 }
+New-Item -ItemType Directory -Path (Join-Path $stage 'scripts') -Force | Out-Null
+Copy-Item -LiteralPath (Join-Path $taskRoot 'scripts\Test-Container.py') -Destination (Join-Path $stage 'scripts')
 Copy-Item -LiteralPath (Join-Path $taskRoot '.dockerignore') -Destination $stage -Force
-foreach($name in @('ASSISTANT-WORKFLOW.md','DEPLOYMENT-VALIDATION-2026-10-29.md')){
+foreach($name in @('ASSISTANT-WORKFLOW.md','DEPLOYMENT-VALIDATION-2026-10-29.md','AUTOMATION.md')){
     Copy-Item -LiteralPath (Join-Path $taskRoot ('docs\'+$name)) -Destination (Join-Path $stage 'docs')
 }
 Copy-Item -LiteralPath (Join-Path $taskRoot 'LICENSE') -Destination $stage
+Copy-Item -LiteralPath (Join-Path $taskRoot 'CHANGELOG.md') -Destination $stage
 $jarHash=(Get-FileHash -LiteralPath $jar -Algorithm SHA256).Hash.ToLowerInvariant()
 @{releaseId=$ReleaseId;createdUtc=[DateTime]::UtcNow.ToString('o');jarSha256=$jarHash;deployed=$false}|ConvertTo-Json|Set-Content -LiteralPath (Join-Path $stage 'release.json') -Encoding utf8
 # ZipFile includes dotfiles such as the env template and .dockerignore.
